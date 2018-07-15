@@ -1,2 +1,2 @@
-# ofiginal idea comes from https://github.com/xiaofengShi/CHINESE-OCR
+original idea comes from https://github.com/xiaofengShi/CHINESE-OCR
 
