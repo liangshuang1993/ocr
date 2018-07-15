@@ -1,0 +1,11 @@
+# Python:
+*.py[cod]
+*.so
+*.egg
+*.egg-info
+dist
+build
+results/*
+ctpn/checkpoints
+ctpn/checkpoints-470000
+ctpn/logs
