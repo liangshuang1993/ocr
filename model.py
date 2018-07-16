@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 import sys
 
-# sys.path.append("crnn")
+sys.path.append("crnn")
 # from angle.predict import predict as angle_detect  ##文字方向检测
 
 
@@ -24,6 +24,8 @@ if os.path.exists(RESULTS):
     shutil.rmtree(RESULTS)
 os.makedirs(RESULTS)
 os.makedirs(RESULTS_CTPN)
+
+IMAGE_SIZE = np.array((3000, 4000, 3), dtype=np.int32)
 
 def ruihua(image):
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], np.float32) #锐化
@@ -49,8 +51,9 @@ def crnnRec(imname, im, text_recs, ocrMode='keras', adjust=False):
     index = 0
     results = {}
     xDim, yDim = im.shape[1], im.shape[0]
-
-    os.makedirs(os.path.join(RESULTS_CTPN, imname.split('.')[0]))
+    
+    if not os.path.exists(os.path.join(RESULTS_CTPN, imname.split('.')[0])):
+        os.makedirs(os.path.join(RESULTS_CTPN, imname.split('.')[0]))
 
     for index, rec in enumerate(text_recs):
         results[index] = [
@@ -79,14 +82,17 @@ def crnnRec(imname, im, text_recs, ocrMode='keras', adjust=False):
         max_x = max(rec[0], rec[2], rec[4], rec[6])
         max_y = max(rec[1], rec[3], rec[5], rec[7])
         partImg = im[min_y: max_y, min_x: max_x, :]
-        # 根据ctpn进行识别出的文字区域，进行不同文字区域的crnn识别
-        image = Image.fromarray(partImg).convert('L')
-        # image = Image.fromarray(ruihua(partImg))
-        image.save(os.path.join(RESULTS_CTPN, imname.split('.')[0], str(index) + '.png'))
-        # cv2.imwrite(os.path.join(RESULTS_CTPN, imname.split('.')[0], str(index) + '.png'), image)
-        # 进行识别出的文字识别
-        sim_pred = crnn_predict(image)
-        results[index].append(sim_pred)  ##识别文字
+        try:
+            # 根据ctpn进行识别出的文字区域，进行不同文字区域的crnn识别
+            image = Image.fromarray(partImg).convert('L')
+            # image = Image.fromarray(ruihua(partImg))
+            image.save(os.path.join(RESULTS_CTPN, imname.split('.')[0], str(index) + '.png'))
+            # cv2.imwrite(os.path.join(RESULTS_CTPN, imname.split('.')[0], str(index) + '.png'), image)
+            # 进行识别出的文字识别
+            sim_pred = crnn_predict(image)
+            results[index].append(sim_pred)  ##识别文字
+        except Exception:
+            results[index].append('Error')
 
     return results
 
@@ -116,7 +122,7 @@ def dumpRotateImage(img, degree, pt1, pt2, pt3, pt4):
     return imgOut
 
 
-def model(im_name, img, model='keras', adjust=True, detectAngle=False):
+def model(index, im_name, img, model='keras', adjust=True, detectAngle=False):
     """
     @@param:img,
     @@param:model,选择的ocr模型，支持keras\pytorch版本
@@ -126,8 +132,9 @@ def model(im_name, img, model='keras', adjust=True, detectAngle=False):
     """
     angle = 0
     original_img = img
+    print original_img.shape
     # 进行图像中的文字区域的识别
-    text_recs, tmp, img=text_detect(os.path.join(RESULTS_CTPN, im_name), img)
+    text_recs, tmp, img=text_detect(os.path.join(RESULTS_CTPN, im_name.split('.')[0] + str(index) + '.png'), img)
     # 识别区域排列
     # text_recs = sort_box(text_recs)
     # 
@@ -135,7 +142,8 @@ def model(im_name, img, model='keras', adjust=True, detectAngle=False):
     results = crnnRec(im_name, original_img, text_recs, model, adjust=adjust)
 
     # draw new image
-    new_img = np.ones(original_img.shape) * 255
+    # new_img = np.ones(original_img.shape) * 255
+    new_img = np.ones(IMAGE_SIZE) * 255
     color_ = (0,0,0)
     text_size = 20
     ft = draw.put_chinese_text('/datasets/text_renderer/data/fonts/chn/songti.ttf')

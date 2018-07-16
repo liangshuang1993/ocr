@@ -9,3 +9,5 @@ results/*
 ctpn/checkpoints
 ctpn/checkpoints-470000
 ctpn/logs
+*.PNG
+nohup.sh
