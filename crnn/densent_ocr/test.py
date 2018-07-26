@@ -3,16 +3,13 @@ import sys
 if sys.getdefaultencoding() != 'utf-8':
     reload(sys)
     sys.setdefaultencoding('utf-8')
-IMAGE_DIR = '/home/ls/project201803/caffe.image/datasets/datasets/test/datasets_2001_3000/'
-#IMAGE_DIR = '/home/ls/project201803/caffe.image/datasets/datasets/test/test_clear100/'
-#IMAGE_DIR = '/home/ls/project201803/caffe.image/datasets/datasets/'
-#IMAGE_DIR = '/datasets/TextRecognitionDataGenerator/TextRecognitionDataGenerator/train1'
-#IMAGE_DIR = '/datasets/text_renderer/val2/default'
+IMAGE_DIR = '/datasets/pics/test/datasets_2001_3000/'
+# IMAGE_DIR = '/datasets/pics/test/test_clear100/'
+#IMAGE_DIR = '/datasets/text_renderer/val2/default/'
 
-with open('/home/ls/project201803/caffe.image/datasets/datasets/test/datasets_2001_3000.txt', 'r') as f:
-#with open('/home/ls/project201803/caffe.image/datasets/datasets/test/test_clear_1_100.txt', 'r') as f:
-#with open('/datasets/TextRecognitionDataGenerator/TextRecognitionDataGenerator/train1/labels.txt', 'r') as f:
-#with open('/datasets/text_renderer/val2/default/tmp_labels.txt', 'r') as f:
+with open('/datasets/pics/test/datasets_2001_3000.txt', 'r') as f:
+# with open('/datasets/pics/test/test_clear_1_100.txt', 'r') as f:
+# with open('/datasets/text_renderer/val2/default/tmp_labels.txt', 'r') as f:
 #with open('/datasets/datasets/train/train_1.txt', 'r') as f:
 #with open('/datasets/datasets/val/val_0.txt', 'r') as f:
     lines = f.readlines()
@@ -61,7 +58,7 @@ from keras.optimizers import SGD
 
 import tensorflow as tf  
 import keras.backend.tensorflow_backend as K  
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 def get_session(gpu_fraction=0.8):  
     '''''Assume that you have 6GB of GPU memory and want to allocate ~2GB'''  
@@ -80,7 +77,7 @@ K.set_session(get_session())
 
 char=''
 #with open('char_std_5990.txt',encoding='utf-8') as f:
-with open('/datasets/TextRecognitionDataGenerator/TextRecognitionDataGenerator/dicts/cn.txt',encoding='utf-8') as f:
+with open('/datasets/text_renderer/data/chars/med.txt',encoding='utf-8') as f:
       for ch in f.readlines():
             ch = ch.strip()
             char=char+ch
@@ -95,7 +92,8 @@ id_to_char = {i:j for i,j in enumerate(char)}
 
 
 #modelPath =r'../../keras_ocr_model/weights-densent-32-0.9846.hdf5'
-modelPath =r'../keras_ocr_model/weights5-densent-02.hdf5'
+modelPath =r'/opt/text/keras_ocr_model/weights11-densent-10.hdf5'
+#modelPath =r'weights3-densent-05.hdf5'
 input = Input(shape=(32,None,1),name='the_input')
 y_pred= densenet.dense_cnn(input,nclass)
 basemodel = Model(inputs=input,outputs=y_pred)
@@ -132,26 +130,36 @@ def predict(img_path):
 
 count = 0
 for i, line in enumerate(lines):
-    if i == 1000:
+    if i == 100:
         break
-
-    image_name, label = line.strip().split(' ')
+    content_list = line.strip().split(' ')
+    image_name = content_list[0]
+    label = ''.join(content_list[1:]) 
     if 'text_renderer' in IMAGE_DIR: 
         testimage  = os.path.join(IMAGE_DIR, image_name + '.jpg')
     else:
         testimage  = os.path.join(IMAGE_DIR, image_name)
-    #testimage = r'../demo/15.jpg'
+    # testimage = r'/opt/text/ocr2/aaa.PNG'
+    # testimage = r'result{}.png'.format(str(i))
+    # testimage = r'/opt/text/ocr2/results/ctpn/12/15.png'
+    #testimage = r'/datasets/text_renderer/result.png'
+    #testimage = r'/datasets/text_renderer/train2/default/00000517.jpg'
+    #testimage = r'/datasets/pics/test/datasets_2001_3000/2835.jpg'
+    # testimage = r'/datasets/text_renderer/tmp1/default/000000{}.jpg'.format(i)
+    if not os.path.exists(testimage):
+        continue
+    #testimage = r'/home/ls/project201803/tensorflow.image/opt/text_detection/ocr2/results/ctpn/35.jpg'
     #testimage = r'/datasets/TextRecognitionDataGenerator/TextRecognitionDataGenerator/train1/1245.jpg'
     b,img= predict(testimage)
     # plt.imshow(img,cmap='gray')
     if b != label:
         #print('预测m1:',b)
-        #print(b)
-        #print(label)
+        print(b)
+        print(label)
         for c in label.decode('utf8'):
             if c not in char:
                 print 'missing, ', c
-        #print('wrong!!', image_name, '----------------------------')
+        print('wrong!!', image_name, '----------------------------')
         count += 1
 
 print count

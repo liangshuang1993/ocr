@@ -43,7 +43,7 @@ def transition_block(input,nb_filter,dropout_rate=None,pooltype=1,weight_decay=1
         x = AveragePooling2D((2,2),strides=(2,1))(x)
     return x,nb_filter
 
-def dense_cnn(input,nclass):
+def dense_cnn(input,nclass, name='out'):
 
     _dropout_rate = 0.2 
     _weight_decay = 1e-4
@@ -72,7 +72,7 @@ def dense_cnn(input,nclass):
 
     x = Permute((2,1,3),name='permute')(x)
     x = TimeDistributed(Flatten(),name='flatten')(x)
-    y_pred = Dense(nclass,name='out',activation='softmax')(x)
+    y_pred = Dense(nclass,name=name,activation='softmax')(x)
 
     #basemodel = Model(inputs=input,outputs=y_pred)
     #basemodel.summary()
@@ -82,6 +82,5 @@ def dense_blstm(input):
 
     pass
 
-def dense_model():
-    input = Input(shape=(32,153,1),name='the_input')
-    dense_cnn(input,1000)
+input = Input(shape=(32,153,1),name='the_input')
+dense_cnn(input,1000)

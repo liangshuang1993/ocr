@@ -34,7 +34,7 @@ def get_basemodel(modelPath):
     return basemodel
 
 def get_model():
-    modelPath =r'../keras_ocr/keras_ocr_model/weights10-densent-01.hdf5'
+    modelPath =r'/opt/text/keras_ocr_model/weights11-densent-10.hdf5'
     if os.path.exists(modelPath):
         basemodel = get_basemodel(modelPath)
     return basemodel
