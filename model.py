@@ -8,6 +8,7 @@ import shutil
 import numpy as np
 from PIL import Image
 import sys
+import copy
 
 sys.path.append("crnn")
 # from angle.predict import predict as angle_detect  ##文字方向检测
@@ -122,24 +123,59 @@ def dumpRotateImage(img, degree, pt1, pt2, pt3, pt4):
     return imgOut
 
 
-def model(index, im_name, img, model='keras', adjust=True, detectAngle=False):
+def model(index, im_name, img, model='keras', adjust=True, recheck_flag=True):
     """
     @@param:img,
     @@param:model,选择的ocr模型，支持keras\pytorch版本
     @@param:adjust 调整文字识别结果
-    @@param:detectAngle,是否检测文字朝向
     
     """
-    angle = 0
     original_img = img
-    print original_img.shape
     # 进行图像中的文字区域的识别
-    text_recs, tmp, img=text_detect(os.path.join(RESULTS_CTPN, im_name.split('.')[0] + str(index) + '.png'), img)
+    text_recs, scale, img, abnormal_areas=text_detect(os.path.join(RESULTS_CTPN, im_name.split('.')[0] + str(index) + '.png'), 
+                                                    img, recheck_flag=recheck_flag)
+    if len(abnormal_areas):
+        print abnormal_areas[0]
+        #有异常区域，需要重新检测,暂时只检测第一个
+        #将异常区域贴到新的图片上，防止异常区域过小
+        abnormal_img = Image.fromarray(img[int(abnormal_areas[0][1]): int(abnormal_areas[0][3]), int(abnormal_areas[0][0]): int(abnormal_areas[0][2]), :])
+        sub_size = max(abnormal_img.size[0], abnormal_img.size[1])
+        if sub_size < 200:
+            sub_img = Image.new('RGB', (200, 200), (255, 255, 255))
+        else:
+            sub_img = Image.new('RGB', (sub_size, sub_size), (255, 255, 255))
+        sub_img.paste(abnormal_img, (0, 0))
+        sub_img.save('subimage.jpg')
+        sub_text_recs, sub_scale, sub_img, _=text_detect(os.path.join(RESULTS_CTPN, im_name.split('.')[0] + str(index) + 'sub.png'),
+                                                       np.array(sub_img.convert('RGB')), recheck_flag=False)
+
+        finally_text_recs = []
+        # 把大图片和小图片的text_rec合并
+        # 大图片
+        for rec in text_recs:
+            for i in range(4):
+                if not rec_in_area(rec, abnormal_areas[0], scale):
+                    finally_text_recs.append(rec)
+        # 小图片
+        for rec in sub_text_recs:
+            #绝对位置
+            abs_rec = []
+            for i in range(4):
+                abs_rec.append(int(rec[2 * i] / scale + abnormal_areas[0][0] / scale))
+                abs_rec.append(int(rec[2 * i + 1] / scale + abnormal_areas[0][1] / scale))
+
+            finally_text_recs.append(abs_rec)
+    else:
+        finally_text_recs = text_recs
+    
+    draw_box(im_name, original_img, finally_text_recs)
+    
     # 识别区域排列
     # text_recs = sort_box(text_recs)
     # 
      
-    results = crnnRec(im_name, original_img, text_recs, model, adjust=adjust)
+    # results = crnnRec(im_name, original_img, text_recs, model, adjust=adjust)
+    results = crnnRec(im_name, original_img, finally_text_recs, model, adjust=adjust)
 
     # draw new image
     # new_img = np.ones(original_img.shape) * 255
@@ -154,7 +190,7 @@ def model(index, im_name, img, model='keras', adjust=True, detectAngle=False):
         new_img = ft.draw_text(new_img, pos, b[0], text_size, color_)
     cv2.imwrite(os.path.join(RESULTS, im_name), new_img)      
     
-    return tmp, angle
+    return
 
 
 def sort_box(box):
@@ -173,4 +209,31 @@ def sort_box(box):
     box = sorted(box, key=lambda x: sum([x[1], x[3], x[5], x[7]]))
     return box
 
+def rec_in_area(rec, abnormal_area, scale):
+    abnormal_area = [x / scale for x in abnormal_area]
+    x1, y1, x2, y2 = abnormal_area
+    for i in range(4):
+        x = rec[2 * i]
+        y = rec[2 * i + 1]
+        if x > x1 and x < x2 and y > y1 and y < y2:
+            return True
+    x1 = min(rec[0], rec[4])
+    y1 = min(rec[1], rec[3])
+    x2 = max(rec[2], rec[6])
+    y2 = max(rec[5], rec[7])
+    
+    if abnormal_area[0] > x1 and abnormal_area[0] < x2 and abnormal_area[1] > y1 and abnormal_area[1] < y2:
+        return True
+    return False
 
+def draw_box(im_name, original_img, text_recs):
+    im = copy.deepcopy(original_img)
+    c = tuple(np.random.randint(0, 256, 3))
+    for rec in text_recs:
+        x1, y1, x2, y2, x3, y3, x4, y4 = rec
+        cv2.line(im, (int(x1), int(y1)), (int(x2), int(y2)), c, 2)
+        cv2.line(im, (int(x1), int(y1)), (int(x3), int(y3)), c, 2)
+        cv2.line(im, (int(x4), int(y4)), (int(x2), int(y2)), c, 2)
+        cv2.line(im, (int(x3), int(y3)), (int(x4), int(y4)), c, 2)
+        cv2.imwrite(im_name,im)
+        
